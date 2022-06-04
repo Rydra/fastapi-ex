@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.sql.functions import user
 
 from routers import foos, users
-from src.models import HelloWorldModel, GetItemModel, ItemInput
+from models import HelloWorldModel, GetItemModel, ItemInput
 
 app = FastAPI()
 app.include_router(foos.router)
