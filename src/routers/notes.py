@@ -1,13 +1,17 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 import databases
 import sqlalchemy
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain import event
+from eventsourcing.persistence import Mapper, Transcoder
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from routers.infrastructure import Snapshot, Aggregate, PydanticMapper, OrjsonTranscoder
 
 router = APIRouter()
 # SQLAlchemy specific code, as with any other app
@@ -60,6 +64,9 @@ class NoteAggregate(Aggregate):
 
 
 class NoteCommandHandler(Application):
+    is_snapshotting_enabled = True
+    snapshot_class = Snapshot
+
     def register_note(self, type, text):
         note = NoteAggregate(type)
         note.set_text(text)
@@ -74,6 +81,15 @@ class NoteCommandHandler(Application):
     def get_note(self, note_id):
         note = self.repository.get(note_id)
         return note
+
+    def construct_mapper(self) -> Mapper:
+        return self.factory.mapper(
+            transcoder=self.construct_transcoder(),
+            mapper_class=PydanticMapper,
+        )
+
+    def construct_transcoder(self) -> Transcoder:
+        return OrjsonTranscoder()
 
 
 @router.on_event("startup")
@@ -113,7 +129,7 @@ async def create_note(note: NoteInput):
 @router.post("/noteses/")
 async def create_note_es(note: NoteInput):
     application = NoteCommandHandler()
-    note_id = application.register_note(note.text)
+    note_id = application.register_note("customnote", note.text)
     return {"id": note_id}
 
 
